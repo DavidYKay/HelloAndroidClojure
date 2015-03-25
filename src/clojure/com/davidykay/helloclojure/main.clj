@@ -1,17 +1,32 @@
 (ns com.davidykay.helloclojure.main
+  (:require [neko.log :as log])
   (:use [neko.activity :only [defactivity set-content-view!]]
         [neko.threading :only [on-ui]]
         [neko.ui :only [make-ui config]]
-        )
+        [clojure.string :only [join]])
   (:import (java.util Calendar)
+           (android.view View)
            (android.app Activity)
            (android.app DatePickerDialog DatePickerDialog$OnDateSetListener)
            (android.app DialogFragment)))
 
-(def listing (atom ""))
+(def listing (atom (sorted-map)))
 
 (declare ^android.widget.LinearLayout mylayout)
 (declare update-ui)
+
+(defn format-events [events]
+  (->> (map (fn [[location event]]
+              (format "%s - %s\n" location event))
+            events)
+       (join "                      ")))
+
+(defn format-listing [lst]
+  (->> (map (fn [[date events]]
+               (format "%s - %s" date (format-events events)))
+             lst)
+       join))
+
 
 (defn set-elmt [elmt s]
   (on-ui (config (elmt (.getTag mylayout)) :text s)))
@@ -20,10 +35,14 @@
   (str (.getText (elmt (.getTag mylayout)))))
 
 (defn add-event []
-  (swap! listing str 
-     (apply format "%s - %s - %s\n" (map get-elmt [::date ::location ::name])))
-  (update-ui))
-
+  (let [date-key (try
+                   (read-string (get-elmt ::date))
+                   (catch RuntimeException e "Date string is empty!"))]
+    (log/d "add-event. date-key: " date-key)
+    (log/d "add-event. Current val of listing: " @listing)
+    (when (number? date-key)
+      (swap! listing update-in [date-key] (fnil conj []) [(get-elmt ::location) (get-elmt ::name)])
+      (update-ui))))
 
 (defn date-picker [activity]
   (proxy [DialogFragment DatePickerDialog$OnDateSetListener] []
@@ -35,10 +54,12 @@
         (DatePickerDialog. activity this year month day)))
      (onDateSet [view year month day]
        (set-elmt ::date
-         (format "%02d/%02d/%02d" year (inc month) day)))))
+         (format "%02d%02d%02d" year (inc month) day)))))
+         ;(format "%02d/%02d/%02d" year (inc month) day)))))
 
 (defn show-picker [activity dp]
   (. dp show (. activity getFragmentManager) "datePicker"))
+
 
 (defn main-layout [activity]
   [:linear-layout {:orientation :vertical,
@@ -55,15 +76,15 @@
               :on-click (fn [_] (show-picker activity
                                             (date-picker activity)))}]]
    [:button {:text "+ Event",
-             :on-click (fn [_] (add-event))}]
-   [:text-view {:text @listing,
+             :on-click (fn [_](add-event))}]
+   [:text-view {:text (format-listing @listing),
                 :id ::listing}]])
 
 (defn update-ui []
-  (set-elmt ::listing @listing)
+  (set-elmt ::listing (format-listing @listing))
   (set-elmt ::location "")
-  (set-elmt ::name ""))
-
+  (set-elmt ::name "")
+  (set-elmt ::date ""))
 
 (defactivity com.davidykay.helloclojure.MainActivity
   :key :main
@@ -73,5 +94,4 @@
     (on-ui
      (set-content-view! this
                         (main-layout this)))
-    (on-ui
-     (set-elmt ::listing @listing))))
+    (on-ui (set-elmt ::listing (format-listing @listing)))))
