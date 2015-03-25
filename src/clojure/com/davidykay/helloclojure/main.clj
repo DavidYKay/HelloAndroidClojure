@@ -21,7 +21,7 @@
 
 (defn add-event []
   (swap! listing str 
-     (apply format "%d - %s - %s\n" (map get-elmt [::date ::location ::name])))
+     (apply format "%s - %s - %s\n" (map get-elmt [::date ::location ::name])))
   (update-ui))
 
 
@@ -35,8 +35,7 @@
         (DatePickerDialog. activity this year month day)))
      (onDateSet [view year month day]
        (set-elmt ::date
-                 "YY MM DD"))))
-         ;(format "%02d%02d%02d" year (inc month) day)))))
+         (format "%02d/%02d/%02d" year (inc month) day)))))
 
 (defn show-picker [activity dp]
   (. dp show (. activity getFragmentManager) "datePicker"))
@@ -49,11 +48,14 @@
                 :id ::name}]
    [:edit-text {:hint "Event location",
                 :id ::location}]
-   [:button {:text "...",
-             :on-click (fn [_] (show-picker activity 
-                                            (date-picker activity)))}]
+   [:linear-layout {:orientation :horizontal}
+    [:text-view {:hint "Event date",
+                 :id ::date}]
+    [:button {:text "...",
+              :on-click (fn [_] (show-picker activity
+                                            (date-picker activity)))}]]
    [:button {:text "+ Event",
-             :on-click (fn [_](add-event))}]
+             :on-click (fn [_] (add-event))}]
    [:text-view {:text @listing,
                 :id ::listing}]])
 
