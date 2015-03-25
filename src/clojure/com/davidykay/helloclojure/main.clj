@@ -8,6 +8,23 @@
            (android.app DatePickerDialog DatePickerDialog$OnDateSetListener)
            (android.app DialogFragment)))
 
+(def listing (atom ""))
+
+(declare ^android.widget.LinearLayout mylayout)
+(declare update-ui)
+
+(defn set-elmt [elmt s]
+  (on-ui (config (elmt (.getTag mylayout)) :text s)))
+
+(defn get-elmt [elmt]
+  (str (.getText (elmt (.getTag mylayout)))))
+
+(defn add-event []
+  (swap! listing str 
+     (apply format "%d - %s - %s\n" (map get-elmt [::date ::location ::name])))
+  (update-ui))
+
+
 (defn date-picker [activity]
   (proxy [DialogFragment DatePickerDialog$OnDateSetListener] []
     (onCreateDialog [savedInstanceState]
@@ -18,7 +35,8 @@
         (DatePickerDialog. activity this year month day)))
      (onDateSet [view year month day]
        (set-elmt ::date
-         (format "%d%02d%02d" year (inc month) day)))))
+                 "YY MM DD"))))
+         ;(format "%02d%02d%02d" year (inc month) day)))))
 
 (defn show-picker [activity dp]
   (. dp show (. activity getFragmentManager) "datePicker"))
@@ -31,45 +49,27 @@
                 :id ::name}]
    [:edit-text {:hint "Event location",
                 :id ::location}]
-   [:linear-layout {:orientation :horizontal}
-    [:text-view {:hint "Event date",
-                 :id ::date}]
-    [:button {:text "...",
-              :on-click (fn [_] (show-picker activity
-                                             (date-picker activity)))}]]
+   [:button {:text "...",
+             :on-click (fn [_] (show-picker activity 
+                                            (date-picker activity)))}]
    [:button {:text "+ Event",
              :on-click (fn [_](add-event))}]
    [:text-view {:text @listing,
                 :id ::listing}]])
-
-(declare ^android.widget.LinearLayout mylayout)
-
-(defn get-elmt [elmt]
-  (str (.getText (elmt (.getTag mylayout)))))
-
-(defn set-elmt [elmt s]
-  (on-ui (config (elmt (.getTag mylayout)) :text s)))
-
-
-(def listing (atom ""))
 
 (defn update-ui []
   (set-elmt ::listing @listing)
   (set-elmt ::location "")
   (set-elmt ::name ""))
 
-(defn add-event []
-  (swap! listing str 
-     (apply format "%d - %s - %s\n" (map get-elmt [::date ::location ::name])))
-  (update-ui))
-
 
 (defactivity com.davidykay.helloclojure.MainActivity
   :key :main
+  ;:def a
   :on-create
   (fn [this bundle]
     (on-ui
-     (set-content-view! (*a)
+     (set-content-view! this
                         (main-layout this)))
     (on-ui
      (set-elmt ::listing @listing))))
